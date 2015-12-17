@@ -1,5 +1,4 @@
-REBAR:=$(shell which rebar || echo ./rebar)
-REBAR_URL:="https://github.com/downloads/basho/rebar/rebar"
+REBAR ?= $(shell which rebar 2> /dev/null || which ./rebar3)
 
 gh-pages : TMPDIR := $(shell mktemp -d -t dns_erlang.gh-pages.XXXX)
 gh-pages : BRANCH := $(shell git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1 /')
@@ -8,32 +7,13 @@ gh-pages : VERSION := $(shell sed -n 's/.*{vsn,.*"\(.*\)"}.*/\1/p' src/dns.app.s
 
 .PHONY: all doc clean test
 
-all: deps compile
-
-$(REBAR):
-	@echo "No rebar was found so a copy will be downloaded in 5 seconds."
-	@echo "Source: ${REBAR_URL} Destination: ${REBAR}"
-	@sleep 5
-	@echo "Commencing download... "
-	@erl -noshell -eval "\
-[ application:start(X) || X <- [crypto,public_key,ssl,inets]],\
-Request = {\"${REBAR_URL}\", []},\
-HttpOpts = [],\
-Opts = [{stream, \"$(REBAR)\"}],\
-Result = httpc:request(get, Request, HttpOpts, Opts),\
-Status = case Result of {ok, _} -> 0; _ -> 1 end,\
-init:stop(Status)."
-	@chmod u+x ./rebar
-	@echo "ok"
+all: compile
 
 compile: $(REBAR)
 	@$(REBAR) compile
 
-deps: $(REBAR)
-	@$(REBAR) get-deps
-
 doc: $(REBAR)
-	@$(REBAR) doc skip_deps=true
+	@$(REBAR) edoc
 
 clean: $(REBAR)
 	@$(REBAR) clean
@@ -55,4 +35,4 @@ gh-pages: $(REBAR) test doc
 	rm -fr ${TMPDIR}
 
 test: $(REBAR) all
-	@$(REBAR) eunit skip_deps=true
+	@$(REBAR) eunit
